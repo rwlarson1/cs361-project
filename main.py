@@ -211,7 +211,7 @@ class App(customtkinter.CTk):
         
         for heading in headings:
             self.tree.heading(heading, text=heading, anchor="w", command=lambda c=heading: self._sort_by_column(c))
-            self.tree.column(heading, anchor="w", stretch=True)
+            self.tree.column(heading, anchor="w", width=100, stretch=True)
            
             if heading not in self.sort_order:
                 self.sort_order[heading] = "ascending"
