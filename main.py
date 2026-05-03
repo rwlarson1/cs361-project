@@ -126,6 +126,14 @@ class App(customtkinter.CTk):
         return False
     
     def open_csv(self):
+        confirm = messagebox.askyesno(
+            title="Open New CSV",
+            message="Opening a new file will replace the current dataset. Continue?"
+        )
+
+        if not confirm:
+            return
+        
         if self.open_file():
             self.populate_dataframe()
             if self.sidebar_open:
