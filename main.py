@@ -27,28 +27,25 @@ class App(customtkinter.CTk):
         self._intro_frame()
 
     def _intro_frame(self):
+        
+        # Don't allow user to resize splash screen
+        self.resizable(False, False)
+        
         self.intro_frame = customtkinter.CTkFrame(self, fg_color="transparent")
-        self.intro_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=24)
+        self.intro_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=30)
         self.intro_frame.grid_columnconfigure(0, weight=1)
+        self.intro_frame.grid_rowconfigure(0, weight=1)
+        self.intro_frame.grid_rowconfigure(1, weight=1)
         
-        self.open_card = customtkinter.CTkFrame(self.intro_frame, corner_radius=10)
-        self.open_card.grid(row=0, column=0, sticky="ew", pady=(0, 18))
-        self.open_card.grid_columnconfigure(0, weight=1)
-        
-        self.open_label = customtkinter.CTkLabel(self.open_card, text="Open CSV", cursor="hand2")
-        self.open_label.grid(row=0, column=0, sticky="ew", padx=24, pady=20)
-        
-        self.open_card.bind("<Button-1>", self.close_splash)
-        self.open_label.bind("<Button-1>", self.close_splash)
-        
-        self.instruct_card = customtkinter.CTkFrame(self.intro_frame, corner_radius=10)
-        self.instruct_card.grid(row=1, column=0, sticky="ew")
-        self.instruct_card.grid_columnconfigure(0, weight=1)
+        self.open_button = customtkinter.CTkButton(
+            self.intro_frame, text="Open CSV File", 
+            hover_color="#333333", text_color="white", height=80, corner_radius=6, 
+            font=("", 16, "bold"), command=self.close_splash)
+        self.open_button.grid(row=0, column=0, sticky="sew")
         
         self.instructions = customtkinter.CTkLabel(
-            self.instruct_card, text=INTRODUCTION, justify="left", anchor="w")
-        self.instructions.grid(row=0, column=0, sticky="w", padx=30, pady=30)
-        self.instruct_card.bind("<Configure>", self._update_wrap)
+            self.intro_frame, text=INTRODUCTION, wraplength=450, anchor="w", justify="left", font=("", 14))
+        self.instructions.grid(row=1, column=0, sticky="w", padx=5, pady=20)
     
     def _prepare_main(self):
         self.main_frame = customtkinter.CTkFrame(self)
@@ -67,14 +64,14 @@ class App(customtkinter.CTk):
         self.menu_button.grid(row=0, column=0, sticky="w")
         
         self.datatree_card = customtkinter.CTkFrame(self.main_frame)
-        self.datatree_card.grid(row=1, column=0, sticky="nesw")
+        self.datatree_card.grid(row=1, column=0, sticky="new")
         self.datatree_card.grid_rowconfigure(0, weight=1)
         self.datatree_card.grid_columnconfigure(0, weight=1)
         
         self.status_bar = customtkinter.CTkLabel(
-            self, text="No CSV file currently loaded.", corner_radius=0
+            self, text="No CSV file currently loaded.", corner_radius=0, padx=10
         )
-        self.status_bar.grid(row=1, column=0, sticky="w", padx=10)
+        self.status_bar.grid(row=1, column=0, sticky="w")
         
         # Create the sidebar
         self.sidebar = customtkinter.CTkFrame(self, width=200)
@@ -84,11 +81,11 @@ class App(customtkinter.CTk):
         self.sidebar.grid_propagate(False)
         self.sidebar_open = False
         
-        self.close_sidebar = customtkinter.CTkButton(
+        self.close_sidebar_button = customtkinter.CTkButton(
             self.sidebar, text="✕", width=30, height=30, fg_color="transparent",
             hover_color="#333333", text_color="white", command=self.menu_clicked
             )
-        self.close_sidebar.grid(row=0, column=0, sticky="e", padx=10, pady=10)
+        self.close_sidebar_button.grid(row=0, column=0, sticky="e", padx=10, pady=10)
         
         self.open_csv_button = customtkinter.CTkButton(
             self.sidebar, text="Open CSV", fg_color="transparent",
@@ -97,12 +94,12 @@ class App(customtkinter.CTk):
         )
         self.open_csv_button.grid(row=1, column=0, sticky="ew", padx=(5, 10))
         
-        self.data_summary = customtkinter.CTkButton(
+        self.data_summary_button = customtkinter.CTkButton(
             self.sidebar, text="Data Summary", fg_color="transparent",
             hover_color="#333333", text_color="white", anchor="w",
             height=40, corner_radius=6, command=self.summarize_data
         )
-        self.data_summary.grid(row=2, column=0, sticky="ew", padx=(5, 10))
+        self.data_summary_button.grid(row=2, column=0, sticky="ew", padx=(5, 10))
         
         self.restore_button = customtkinter.CTkButton(
             self.sidebar, text="Restore Original State", fg_color="transparent",
@@ -110,6 +107,8 @@ class App(customtkinter.CTk):
             anchor="w", height=40, corner_radius=6, command=self.restore_csv
         )
         self.restore_button.grid(row=3, column=0, sticky="ew", padx=(5, 10))
+        
+        self.status_bar.lift()
     
     def open_file(self):
         file_path = filedialog.askopenfilename(
@@ -130,12 +129,6 @@ class App(customtkinter.CTk):
         if self.open_file():
             self.populate_dataframe()
         
-    def _update_wrap(self, event):
-        if hasattr(self, "instructions"):
-            new_width = event.width - 175  # a magic number until it looked good
-            if new_width > 100:
-                self.instructions.configure(wraplength=new_width)
-    
     def restore_csv(self):
         confirm = messagebox.askyesno(
         title="Restore Original State",
@@ -147,13 +140,14 @@ class App(customtkinter.CTk):
 
         self.df = self.original_df.copy()
         self.populate_dataframe(status_msg=f"Restored {self.filename} to its original state.")
-        
+    
     def close_splash(self, event=None):
         if not self.open_file():
             return
         
         self.intro_frame.destroy()
         self.main_frame.grid(row=0, column=0, sticky="nesw")
+        self.resizable(True, True)
         
         self.create_tree()
     
@@ -188,7 +182,6 @@ class App(customtkinter.CTk):
     def create_tree(self):
         self.tree = ttk.Treeview(self.datatree_card, show="headings")
         
-        # Add scrollbars to the data
         y_scroll = customtkinter.CTkScrollbar(self.datatree_card, orientation="vertical", command=self.tree.yview)
         y_scroll.grid(row=0, column=1, sticky="ns", pady=(10, 0))
 
@@ -230,7 +223,10 @@ class App(customtkinter.CTk):
         
         # Try to force everything to numeric if possible.
         for c in self.df.columns:
-            self.df[c] = pd.to_numeric(self.df[c], errors="ignore")
+            try:
+                self.df[c] = pd.to_numeric(self.df[c])
+            except:
+                pass
         
         self.df = self.df.sort_values(by=col, ascending=ascending).reset_index(drop=True)
         self.populate_dataframe(status_msg=f"Sorted by {col} in {self.sort_order.get(col)} order.")
