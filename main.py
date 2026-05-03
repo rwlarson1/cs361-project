@@ -88,7 +88,7 @@ class App(customtkinter.CTk):
         self.close_sidebar_button.grid(row=0, column=0, sticky="e", padx=10, pady=10)
         
         self.open_csv_button = customtkinter.CTkButton(
-            self.sidebar, text="Open CSV", fg_color="transparent",
+            self.sidebar, text="Open CSV File", fg_color="transparent",
             hover_color="#333333", text_color="white", anchor="w",
             height=40, corner_radius=6, command=self.open_csv
         )
@@ -127,8 +127,9 @@ class App(customtkinter.CTk):
     
     def open_csv(self):
         confirm = messagebox.askyesno(
-            title="Open New CSV",
-            message="Opening a new file will replace the current dataset. Continue?"
+            title="Open CSV File",
+            message="Opening a new CSV file will replace the current dataset. Your current dataset "
+            "will not be changed. Continue?"
         )
 
         if not confirm:
