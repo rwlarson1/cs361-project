@@ -1,7 +1,8 @@
 from tkinter import *
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import customtkinter 
 import pandas as pd
+import os
 
 customtkinter.set_appearance_mode("dark")
 customtkinter.set_default_color_theme("dark-blue")
@@ -13,8 +14,6 @@ Your data will be displayed in a table that you can sort by clicking any column 
 
 A summary of your data will be shown below the table so you can quickly understand the key statistics.
 """
-SOME_DATA = [["Thunder", 4, 0], ["Spurs", 4, 1], ["Nuggets", 2, 4], ["Lakers", 4, 2], ["Rockets", 2, 4],
-                        ["Timberwolves", 4, 2], ["Trail Blazers", 1, 4], ["Suns", 0, 4]]
 
 class App(customtkinter.CTk):
     def __init__(self):
@@ -39,8 +38,8 @@ class App(customtkinter.CTk):
         self.open_label = customtkinter.CTkLabel(self.open_card, text="Open CSV", cursor="hand2")
         self.open_label.grid(row=0, column=0, sticky="ew", padx=24, pady=20)
         
-        self.open_card.bind("<Button-1>", lambda e: self.close_splash(e, SOME_DATA))
-        self.open_label.bind("<Button-1>", lambda e: self.close_splash(e, SOME_DATA))
+        self.open_card.bind("<Button-1>", self.close_splash)
+        self.open_label.bind("<Button-1>", self.close_splash)
         
         self.instruct_card = customtkinter.CTkFrame(self.intro_frame, corner_radius=10)
         self.instruct_card.grid(row=1, column=0, sticky="ew")
@@ -111,9 +110,25 @@ class App(customtkinter.CTk):
             anchor="w", height=40, corner_radius=6, command=self.restore_csv
         )
         self.restore_button.grid(row=3, column=0, sticky="ew", padx=(5, 10))
+    
+    def open_file(self):
+        file_path = filedialog.askopenfilename(
+            filetypes=[("CSV Files", "*.csv")]
+        )
+
+        if file_path:
+            self.filename = os.path.basename(file_path)
+            self.df = pd.read_csv(file_path)
+            self.original_df = self.df.copy()
+            self.sort_order = {}
+            self.summarize_data()
+            return True
         
+        return False
+    
     def open_csv(self):
-        self.status_bar.configure(text="Clicked the Open CSV Button from the Menu!")
+        if self.open_file():
+            self.populate_dataframe()
         
     def _update_wrap(self, event):
         if hasattr(self, "instructions"):
@@ -131,16 +146,15 @@ class App(customtkinter.CTk):
             return
 
         self.df = self.original_df.copy()
-        self.refresh_tree()
+        self.populate_dataframe(status_msg=f"Restored {self.filename} to its original state.")
         
-    def close_splash(self, event=None, dataframe=None):
+    def close_splash(self, event=None):
+        if not self.open_file():
+            return
+        
         self.intro_frame.destroy()
         self.main_frame.grid(row=0, column=0, sticky="nesw")
         
-        # In the real implementation, I'll use pandas to read the csv into a dataframe
-        self.filename = "nbaplayoffgames.csv"
-        self.df = pd.DataFrame(dataframe, columns=["Team", "Wins", "Losses"])
-        self.original_df = self.df.copy()
         self.create_tree()
     
     def summarize_data(self):
@@ -172,18 +186,7 @@ class App(customtkinter.CTk):
         self.after(5, lambda: self._close_menu(x - 10))
             
     def create_tree(self):
-        headings = tuple(self.df.columns)
-        self.tree = ttk.Treeview(self.datatree_card, columns=headings, show="headings")
-        self.sort_order = {}
-        
-        for heading in headings:
-            self.tree.heading(heading, text=heading, anchor="w", command=lambda c=heading: self._sort_by_column(c))
-            self.tree.column(heading, anchor="w", stretch=True)
-            self.sort_order[heading] = "ascending"
-            
-        for row in self.df.values:
-            self.tree.insert(parent="", index="end", values=list(row))
-        self.tree.grid(row=0, column=0, sticky="nesw", padx=(10,0))
+        self.tree = ttk.Treeview(self.datatree_card, show="headings")
         
         # Add scrollbars to the data
         y_scroll = customtkinter.CTkScrollbar(self.datatree_card, orientation="vertical", command=self.tree.yview)
@@ -197,20 +200,40 @@ class App(customtkinter.CTk):
             xscrollcommand=x_scroll.set
         )
         
-        self.summarize_data()
+        self.populate_dataframe()
 
-    def refresh_tree(self):
+    def populate_dataframe(self, status_msg=None):
         self.tree.delete(*self.tree.get_children())
         
-        for row in self.df.values:
-            self.tree.insert("", "end", values=list(row))
+        headings = tuple(self.df.columns)
+        self.tree["columns"] = headings
         
-        self.status_bar.configure(text=f"Restored {self.filename} to its original state.")
+        for heading in headings:
+            self.tree.heading(heading, text=heading, anchor="w", command=lambda c=heading: self._sort_by_column(c))
+            self.tree.column(heading, anchor="w", stretch=True)
+           
+            if heading not in self.sort_order:
+                self.sort_order[heading] = "ascending"
+            
+        for row in self.df.values:
+            self.tree.insert(parent="", index="end", values=list(row))
+        self.tree.grid(row=0, column=0, sticky="nesw", padx=(10,0))
+        
+        if(status_msg):
+            self.status_bar.configure(text=status_msg)
+        else:
+            self.summarize_data()
     
-    # TODO: Implement this fully (I plan to use a sorting microservice)
     def _sort_by_column(self, col):
-        self.sort_order[col] = "descending" if self.sort_order.get(col) == "ascending" else "ascending"
-        self.status_bar.configure(text=f"Now sorting by {col} in {self.sort_order.get(col)} order.")
+        self.sort_order[col] = "ascending" if self.sort_order.get(col) == "descending" else "descending"
+        ascending = self.sort_order[col] == "ascending"
+        
+        # Try to force everything to numeric if possible.
+        for c in self.df.columns:
+            self.df[c] = pd.to_numeric(self.df[c], errors="ignore")
+        
+        self.df = self.df.sort_values(by=col, ascending=ascending).reset_index(drop=True)
+        self.populate_dataframe(status_msg=f"Sorted by {col} in {self.sort_order.get(col)} order.")
     
 app = App()
 app.mainloop()
