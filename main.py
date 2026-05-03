@@ -128,6 +128,8 @@ class App(customtkinter.CTk):
     def open_csv(self):
         if self.open_file():
             self.populate_dataframe()
+            if self.sidebar_open:
+                self.menu_clicked()
         
     def restore_csv(self):
         confirm = messagebox.askyesno(
@@ -140,6 +142,9 @@ class App(customtkinter.CTk):
 
         self.df = self.original_df.copy()
         self.populate_dataframe(status_msg=f"Restored {self.filename} to its original state.")
+        
+        if self.sidebar_open:
+            self.menu_clicked()
     
     def close_splash(self, event=None):
         if not self.open_file():
@@ -154,6 +159,9 @@ class App(customtkinter.CTk):
     def summarize_data(self):
         (rows, cols) = self.df.shape
         self.status_bar.configure(text=f"{self.filename}, Rows: {rows}, Columns: {cols}")
+        
+        if self.sidebar_open:
+            self.menu_clicked()
         
     def menu_clicked(self):
         if self.sidebar_open:
@@ -221,14 +229,16 @@ class App(customtkinter.CTk):
         self.sort_order[col] = "ascending" if self.sort_order.get(col) == "descending" else "descending"
         ascending = self.sort_order[col] == "ascending"
         
-        # Try to force everything to numeric if possible.
-        for c in self.df.columns:
-            try:
-                self.df[c] = pd.to_numeric(self.df[c])
-            except:
-                pass
+        try:
+            self.df = self.df.sort_values(
+                by=col,
+                key=lambda x: pd.to_numeric(x),
+                ascending=ascending
+            )
+        except ValueError:
+            self.df = self.df.sort_values(by=col, ascending=ascending)
         
-        self.df = self.df.sort_values(by=col, ascending=ascending).reset_index(drop=True)
+        self.df = self.df.reset_index(drop=True)
         self.populate_dataframe(status_msg=f"Sorted by {col} in {self.sort_order.get(col)} order.")
     
 app = App()
