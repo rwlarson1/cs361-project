@@ -64,14 +64,14 @@ class App(customtkinter.CTk):
         self.menu_button.grid(row=0, column=0, sticky="w")
         
         self.datatree_card = customtkinter.CTkFrame(self.main_frame)
-        self.datatree_card.grid(row=1, column=0, sticky="new")
+        self.datatree_card.grid(row=1, column=0, sticky="nesw")
         self.datatree_card.grid_rowconfigure(0, weight=1)
         self.datatree_card.grid_columnconfigure(0, weight=1)
         
         self.status_bar = customtkinter.CTkLabel(
-            self, text="No CSV file currently loaded.", corner_radius=0, padx=10
+            self, text="No CSV file currently loaded.", corner_radius=0, padx=10, anchor="w"
         )
-        self.status_bar.grid(row=1, column=0, sticky="w")
+        self.status_bar.grid(row=1, column=0, sticky="ew")
         
         # Create the sidebar
         self.sidebar = customtkinter.CTkFrame(self, width=200)
