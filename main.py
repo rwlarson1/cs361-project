@@ -101,12 +101,19 @@ class App(customtkinter.CTk):
         )
         self.data_summary_button.grid(row=2, column=0, sticky="ew", padx=(5, 10))
         
+        self.columns_button = customtkinter.CTkButton(
+            self.sidebar, text="Show/Hide Columns", fg_color="transparent",
+            hover_color="#333333", text_color="white", anchor="w",
+            height=40, corner_radius=6, command=self.open_column_window
+        )
+        self.columns_button.grid(row=3, column=0, sticky="ew", padx=(5, 10))
+        
         self.restore_button = customtkinter.CTkButton(
             self.sidebar, text="Restore Original State", fg_color="transparent",
             hover_color="#333333", text_color="white",
             anchor="w", height=40, corner_radius=6, command=self.restore_csv
         )
-        self.restore_button.grid(row=3, column=0, sticky="ew", padx=(5, 10))
+        self.restore_button.grid(row=4, column=0, sticky="ew", padx=(5, 10))
         
         self.status_bar.lift()
     
@@ -119,6 +126,7 @@ class App(customtkinter.CTk):
             self.filename = os.path.basename(file_path)
             self.df = pd.read_csv(file_path)
             self.original_df = self.df.copy()
+            self.visible_columns = list(self.df.columns)
             self.sort_order = {}
             self.summarize_data()
             return True
@@ -150,6 +158,7 @@ class App(customtkinter.CTk):
             return
 
         self.df = self.original_df.copy()
+        self.visible_columns = list(self.df.columns)
         self.populate_dataframe(status_msg=f"Restored {self.filename} to its original state.")
         
         if self.sidebar_open:
@@ -166,11 +175,76 @@ class App(customtkinter.CTk):
         self.create_tree()
     
     def summarize_data(self):
-        (rows, cols) = self.df.shape
+        rows = len(self.df)
+        cols = len(self.visible_columns)
         self.status_bar.configure(text=f"{self.filename}, Rows: {rows}, Columns: {cols}")
         
         if self.sidebar_open:
             self.menu_clicked()
+    
+    def open_column_window(self):
+        if not hasattr(self, 'df') or self.df is None:
+            messagebox.showwarning("No Data", "Please load a CSV file first.")
+            return
+
+        if self.sidebar_open:
+            self.menu_clicked()
+
+        window = customtkinter.CTkToplevel(self)
+        window.title("Choose Columns")
+        window.geometry("340x500")
+        window.grab_set()                   
+
+        # Instruction label
+        customtkinter.CTkLabel(
+            window, text="Select the columns you want to display in the table.",
+            wraplength=300, font=("", 13)).pack(pady=(20, 10), padx=20, anchor="w")
+
+        # Scrollable frame for checkboxes 
+        scroll_frame = customtkinter.CTkScrollableFrame(window)
+        scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        checkbox_vars = {}
+
+        for col in self.df.columns:
+            var = customtkinter.BooleanVar(value=col in self.visible_columns)
+            checkbox_vars[col] = var
+
+            cb = customtkinter.CTkCheckBox(
+                scroll_frame,
+                text=col,
+                variable=var,
+                font=("", 13)
+            )
+            cb.pack(anchor="w", pady=6, padx=5)
+
+        # Button frame for accept/cancel buttons
+        btn_frame = customtkinter.CTkFrame(window, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=20)
+
+        def apply_columns():
+            selected = [col for col, var in checkbox_vars.items() if var.get()]
+
+            if not selected:
+                messagebox.showwarning(
+                    "Choose Columns",
+                    "At least one column must remain visible."
+                )
+                return
+
+            self.visible_columns = selected
+            self.populate_dataframe(status_msg=f"Visible columns updated ({len(selected)}/{len(self.df.columns)} shown)")
+            window.destroy()
+
+        customtkinter.CTkButton(
+            btn_frame, text="Cancel", fg_color="transparent",
+            width=100, command=window.destroy
+            ).pack(side="right", padx=(10, 0))
+
+        customtkinter.CTkButton(
+            btn_frame, text="Apply", width=100,
+            fg_color="#1f8fff", command=apply_columns
+            ).pack(side="right")
         
     def menu_clicked(self):
         if self.sidebar_open:
@@ -215,7 +289,7 @@ class App(customtkinter.CTk):
     def populate_dataframe(self, status_msg=None):
         self.tree.delete(*self.tree.get_children())
         
-        headings = tuple(self.df.columns)
+        headings = tuple(self.visible_columns)
         self.tree["columns"] = headings
         
         for heading in headings:
